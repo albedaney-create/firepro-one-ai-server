@@ -12,7 +12,11 @@ const client = new OpenAI({
 
 // ==== إعداد السيرفر ====
 const app = express();
-const PORT = process.env.PORT || 3000;
+// مسار فحص السيرفر
+app.get("/", (req, res) => {
+  res.json({ status: "ok", message: "FirePro One AI server is running" });
+});
+const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 app.use(express.json());
