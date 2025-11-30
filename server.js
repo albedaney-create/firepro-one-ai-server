@@ -1,81 +1,106 @@
 
-// =============== FirePro One - AI Assistant (Clean Server) ===============
-const express = require("express");
-const cors = require("cors");
-require("dotenv").config();
-const OpenAI = require("openai");
+// ================================
+// FirePro One AI - Final Server.js
+// نسخة جاهزة 100% ومتوافقة مع Render
+// ================================
 
-// ==== تهيئة عميل OpenAI ====
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import OpenAI from "openai";
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 10000;
+
+// السماح بالوصول من كل النطاقات
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
+
+app.use(express.json());
+
+// OpenAI Client
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ==== إعداد السيرفر ====
-const app = express();
+// =============================
 // مسار فحص السيرفر
+// =============================
 app.get("/", (req, res) => {
-  res.json({ status: "ok", message: "FirePro One AI server is running" });
+  res.json({
+    status: "ok",
+    message: "FirePro One AI server is running",
+    port: PORT,
+  });
 });
-const PORT = process.env.PORT || 10000;
 
-app.use(cors());
-app.use(express.json());
-
-// ==== دالة المساعد ====
+// =============================
+// دالة معالجة طلبات المساعد
+// =============================
 async function handleAssistantRequest(req, res) {
   try {
-    const body = req.body || {};
-
-    const message =
-      body.message ||
-      body.prompt ||
-      body.text ||
-      body.input ||
-      body.question;
-
-    const mode = body.mode || body.standard || body.code || "nfpa"; // nfpa أو saudi
+    const { message, lang = "ar", mode = "chat", standard = "nfpa" } = req.body;
 
     if (!message || typeof message !== "string") {
-      return res.status(400).json({
-        error: "الرسالة مطلوبة لإتمام رد المساعد.",
-      });
+      return res.status(400).json({ error: "رسالة غير صالحة." });
     }
 
-    let systemPrompt =
-      "أنت مساعد ذكي متخصص في أنظمة إنذار ومكافحة الحريق، تجيب باللغة العربية المبسطة.";
+    // إعداد النظام
+    const systemPrompt =
+      lang === "ar"
+        ? `أنت مساعد خبير في أنظمة إنذار الحريق. جاوب بإيجاز ووضوح.
+استخدم المعايير (${standard.toUpperCase()}) عند الحاجة.`
+        : `You are an expert assistant for fire alarm systems.
+Provide clear and concise answers using safety code (${standard.toUpperCase()}).`;
 
-    if (mode === "nfpa") {
-      systemPrompt =
-        "أنت خبير في أنظمة إنذار ومكافحة الحريق وفق معيار NFPA 72. تجاوب بالعربية المبسطة، وتوضح المتطلبات الفنية قدر الإمكان.";
-    } else if (mode === "saudi") {
-      systemPrompt =
-        "أنت خبير في الكود السعودي للحماية من الحريق والسلامة. تجاوب بالعربية المبسطة، وتوضح المتطلبات النظامية قدر الإمكان.";
-    }
-
-    const completion = await client.chat.completions.create({
+    // إرسال الطلب إلى OpenAI
+    const completion = await client.responses.create({
       model: "gpt-4.1-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: message },
+      input: [
+        {
+          role: "system",
+          content: systemPrompt,
+        },
+        {
+          role: "user",
+          content: message,
+        },
       ],
-      temperature: 0.4,
     });
 
-    const answer = completion.choices?.[0]?.message?.content || "";
-    return res.json({ answer });
+    const replyText =
+      completion.output?.[0]?.content?.[0]?.text ||
+      (lang === "ar"
+        ? "تم إنشاء الرد ولكن لم يتم العثور على نص مناسب."
+        : "A reply was generated but no text was found.");
+
+    return res.json({ reply: replyText });
   } catch (error) {
-    console.error("Error in assistant handler:", error);
+    console.error("❌ Error in /chat:", error);
     return res.status(500).json({
-      error: "حدث خطأ أثناء معالجة طلب المساعد.",
+      error:
+        "حدث خطأ داخلي أثناء الاتصال بنظام الذكاء الاصطناعي. يرجى المحاولة لاحقاً.",
     });
   }
 }
 
-// ==== مسار الـ API ====
-app.post("/api/chat", handleAssistantRequest);
+// =============================
+// مسار /chat الرسمي
+// =============================
+app.post("/chat", handleAssistantRequest);
 
-// ==== تشغيل السيرفر ====
+// =============================
+// تشغيل السيرفر
+// =============================
 app.listen(PORT, () => {
-  console.log("FirePro One server running on port:", PORT);
+  console.log("======================================");
+  console.log(🔥 FirePro One AI server running on: ${PORT});
+  console.log("======================================");
 });
-
